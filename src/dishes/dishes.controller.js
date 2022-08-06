@@ -5,13 +5,29 @@ const dishes = require(path.resolve("src/data/dishes-data"));
 const nextId = require("../utils/nextId");
 
 // ---------------------- Validation middleware functions (6 functions)
-function bodyHasNameProperty() {}
+function bodyDataHas(propertyName) {
+    return function (req, res, next) {
+      const { data = {} } = req.body;
+      if (data[propertyName] && data["price"] > 0) {
+        return next();
+      }
+      if (data["price"] < 1 || !data["price"]) {
+        next({ status: 400, message: `Dish must include a price` });
+      }
+      next({ status: 400, message: `Dish must include a ${propertyName}` });
+    };
+}
 
-function bodyHasDescriptionProperty() {}
-
-function bodyHasPriceProperty() {}
-
-function bodyHasImageUrlProperty() {}
+function isNumber(req, res, next) {
+    const dish = res.locals.dish;
+    if (typeof dish.price !== "string") {
+      return next();
+    }
+    next({
+      status: 400,
+      message: `Updated dish price must be a number`,
+    });
+}
 
 function dishExists(req, res, next) {
   const { dishId } = req.params;
@@ -26,7 +42,7 @@ function dishExists(req, res, next) {
   });
 }
 
-function bodyIdMatchesRouteId() {}
+function bodyIdMatchesRouteId(req, res, next) {}
 
 // ------------------------ Create Read Update List Handlers
 
@@ -48,31 +64,43 @@ function create(req, res) {
   res.status(201).json({ data: newDish });
 }
 
-function read(req, res, next) {
+function read(req, res) {
   res.json({ data: res.locals.dish });
 }
 
 function update(req, res) {
-  //use nextId() ???? maybe
+    const { dishId } = req.params;
+    const foundDish = dishes.find((dish) => dish.id === dishId);
+    const { data: { id, name, description, price, image_url } = {} } = req.body;
+  
+    // Update the dish
+    foundDish.id = id;
+    foundDish.name = name;
+    foundDish.description = description;
+    foundDish.price = price;
+    foundDish.image_url = image_url;
+  
+    res.json({ data: foundDish });
 }
 
 module.exports = {
   list,
   create: [
     create,
-    bodyHasNameProperty,
-    bodyHasDescriptionProperty,
-    bodyHasPriceProperty,
-    bodyHasImageUrlProperty,
+    bodyDataHas("name"),
+    bodyDataHas("description"),
+    bodyDataHas("price"),
+    bodyDataHas("image_url"),
   ],
   read: [read, dishExists],
   update: [
     update,
     dishExists,
-    bodyHasNameProperty,
-    bodyHasDescriptionProperty,
-    bodyHasPriceProperty,
-    bodyHasImageUrlProperty,
+    isNumber,
+    bodyDataHas("name"),
+    bodyDataHas("description"),
+    bodyDataHas("price"),
+    bodyDataHas("image_url"),
     bodyIdMatchesRouteId,
   ],
 };

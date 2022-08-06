@@ -7,9 +7,25 @@ const orders = require(path.resolve("src/data/orders-data"));
 const nextId = require("../utils/nextId");
 
 //validation middleware
+// const checkForAbbreviationLength = (req, res, next) => {
+//     const abbreviation = req.params.abbreviation;
+//     if (abbreviation.length !== 2) {
+//       next("State abbreviation is invalid.");
+//     } else {
+//       next();
+//     }
+//   };
 
-function bodyHasDeliverTo() {
-
+function bodyHasDeliverTo(req, res, next) {
+    const deliverTo = req.params.deliverTo
+    if (!deliverTo) {
+        next({
+            status: 400,
+            message: "Order must include a deliverTo"
+        })
+    }   else {
+        next()
+        }
 }
 
 function bodyHasMobileNumber() {
@@ -51,19 +67,19 @@ function create() {
 }
 
 function read() {
-
+    res.json({ data: res.locals.order });
 }
 
 function update() {
 
 }
 
-function delete() {
+function destroy(req, res) {
 
 }
 
-function list() {
-
+function list(req, res) {
+    res.json({ data: dishes });
 }
 
 module.exports = {
@@ -71,5 +87,5 @@ module.exports = {
     create: [],
     read: [],
     update: [],
-    delete: [],
+    delete: [destroy],
 }
