@@ -5,55 +5,74 @@ const dishes = require(path.resolve("src/data/dishes-data"));
 const nextId = require("../utils/nextId");
 
 // ---------------------- Validation middleware functions (6 functions)
-function bodyHasNameProperty() {
+function bodyHasNameProperty() {}
 
-};
+function bodyHasDescriptionProperty() {}
 
-function bodyHasDescriptionProperty() {
-    
-};
+function bodyHasPriceProperty() {}
 
-function bodyHasPriceProperty() {
-    
-};
+function bodyHasImageUrlProperty() {}
 
-function  bodyHasImagUrlProperty() {
-    
-};
+function dishExists(req, res, next) {
+  const { dishId } = req.params;
+  const foundDish = dishes.find((dish) => dish.id === dishId);
+  if (foundDish) {
+    res.locals.dish = foundDish;
+    return next();
+  }
+  next({
+    status: 404,
+    message: `Dish does not exist: ${dishId}`,
+  });
+}
 
-function dishExists() {
-    const { dishId } = req.params;
-    const foundDish = dishes.find(dish => dish.id === Number(dishId));
-    if (foundDish) {
-      res.locals.dish = foundDish;
-      return next();
-    }
-    next({
-        status: 404,
-        message: `Dish does not exist: ${dishId}`
-    });
-};
-
-function  bodyIdMatchesRouteId() {
-
-};
+function bodyIdMatchesRouteId() {}
 
 // ------------------------ Create Read Update List Handlers
 
 function list(req, res) {
-    res.json({ data: dishes });
-};
+  res.json({ data: dishes });
+}
 
 function create(req, res) {
-    //use nextId()
+  //use nextId()
+  const { data: { name, description, price, image_url } = {} } = req.body
+  const newDish = {
+    id: nextId(),
+    name: name,
+    description: description,
+    price: price,
+    image_url: image_url,
+  };
+  dishes.push(newDish);
+  res.status(201).json({ data: newDish });
+}
 
-};
-
-function read(req, res) {
-    res.json({ data: res.locals.dish });
-};
+function read(req, res, next) {
+  res.json({ data: res.locals.dish });
+}
 
 function update(req, res) {
-    //use nextId() ???? maybe
+  //use nextId() ???? maybe
+}
 
+module.exports = {
+  list,
+  create: [
+    create,
+    bodyHasNameProperty,
+    bodyHasDescriptionProperty,
+    bodyHasPriceProperty,
+    bodyHasImageUrlProperty,
+  ],
+  read: [read, dishExists],
+  update: [
+    update,
+    dishExists,
+    bodyHasNameProperty,
+    bodyHasDescriptionProperty,
+    bodyHasPriceProperty,
+    bodyHasImageUrlProperty,
+    bodyIdMatchesRouteId,
+  ],
 };
