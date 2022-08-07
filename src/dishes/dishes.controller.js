@@ -8,7 +8,7 @@ const nextId = require("../utils/nextId");
 function bodyDataHas(propertyName) {
     return function (req, res, next) {
       const { data = {} } = req.body;
-      if (data[propertyName] && data["price"] > 0) {
+      if (data[propertyName]) {
         return next();
       }
       if (data["price"] < 1 || !data["price"]) {

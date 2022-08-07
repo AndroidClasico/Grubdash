@@ -16,76 +16,104 @@ const nextId = require("../utils/nextId");
 //     }
 //   };
 
-function bodyHasDeliverTo(req, res, next) {
-    const deliverTo = req.params.deliverTo
-    if (!deliverTo) {
-        next({
-            status: 400,
-            message: "Order must include a deliverTo"
-        })
-    }   else {
-        next()
-        }
+function bodyDataHas() {
+  return function (req, res, next) {
+    const { data = {} } = req.body;
+    if (data[propertyName] && data[`${index}`] > 0) {
+      return next();
+    }
+    if (data["quantity"] < 1) {
+      next({
+        status: 400,
+        message: `Dish ${index} must have a quantity that is an integer greater than 0`,
+      });
+    }
+    next({ status: 400, message: `Dish must include a ${propertyName}` });
+  };
 }
 
-function bodyHasMobileNumber() {
-
+function orderExists(req, res, next) {
+  const { orderId } = req.params;
+  const foundOrder = orders.find((order) => order.id === orderId);
+  if (foundOrder) {
+    res.locals.order = foundOrder;
+    return next();
+  }
+  next({
+    status: 404,
+    message: `Order does not exist: ${orderId}`,
+  });
 }
 
-function bodyHasDishesProperty() {
-
-}
-
-function bodyHasDishQuantity() {
-
-}
-
-function orderExists() {
-
-}
-
-function bodyIdMatchesRouteId() {
-
-}
+function bodyIdMatchesRouteId() {}
 
 function bodyHasStatus() {
-
+  //`Order must have a status of pending, preparing, out-for-delivery, delivered`
+  const status = res.locals.order;
+  if (
+    order.status !==
+    ("pending" || "preparing" || "out-for-delivery" || "delivered")
+  ) {
+    next();
+  }
+  return next({
+    status: 400,
+    message: `Order must have a status of pending, preparing, out-for-delivery, delivered`,
+  });
 }
 
-function cannotUpdate() {
-
+function cannotUpdate(req, res, next) {
+  const deliveredOrder = res.locals.order;
+  if (order.status === "delivered") {
+    return next({
+      status: 400,
+      message: `A delivered order cannot be changed`,
+    });
+  }
+  next();
 }
 
-function isPendingStatus() {
-
+function isPendingStatus(req, res, next) {
+  //an order cannot be deleted unless status === pending
 }
 
 //CREATE READ UPDATE DELETE LIST functions
 
 function create() {
-
+  //use nextId()
 }
 
 function read() {
-    res.json({ data: res.locals.order });
+  res.json({ data: res.locals.order });
 }
 
-function update() {
+function update() {}
 
-}
-
-function destroy(req, res) {
-
-}
+function destroy(req, res) {}
 
 function list(req, res) {
-    res.json({ data: dishes });
+  res.json({ data: orders });
 }
 
 module.exports = {
-    list,
-    create: [],
-    read: [],
-    update: [],
-    delete: [destroy],
-}
+  list,
+  create: [
+    create,
+    bodyDataHas("deliverTo"),
+    bodyDataHas("mobileNumber"),
+    bodyDataHas("dishes"),
+    bodyDataHas("quantity"),
+  ],
+  read: [read, orderExists],
+  update: [
+    update,
+    bodyDataHas("deliverTo"),
+    bodyDataHas("mobileNumber"),
+    bodyDataHas("dishes"),
+    bodyDataHas("quantity"),
+    bodyIdMatchesRouteId,
+    bodyHasStatus,
+    cannotUpdate,
+  ],
+  delete: [destroy, orderExists, isPendingStatus],
+};
