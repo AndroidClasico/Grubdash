@@ -1,106 +1,133 @@
-const path = require("path");
 
-//dishes data & assign ID's
+const path = require("path");
+// existing dishes data
 const dishes = require(path.resolve("src/data/dishes-data"));
+//  assign ID's when necessary
 const nextId = require("../utils/nextId");
 
-// ---------------------- Validation middleware functions (6 functions)
-function bodyDataHas(propertyName) {
-    return function (req, res, next) {
-      const { data = {} } = req.body;
-      if (data[propertyName]) {
-        return next();
-      }
-      if (data["price"] < 1 || !data["price"]) {
-        next({ status: 400, message: `Dish must include a price` });
-      }
-      next({ status: 400, message: `Dish must include a ${propertyName}` });
-    };
+// CRUD functionality 
+function create(req, res, next) {
+  const { name, description, price, image_url } = req.body.data;
+  const newDish = {
+    id: nextId(),
+    name,
+    description,
+    price,
+    image_url
+  }
+  dishes.push(newDish);
+  res.status(201).json({data: newDish}); 
 }
 
-function isNumber(req, res, next) {
-    const dish = res.locals.dish;
-    if (typeof dish.price !== "string") {
-      return next();
-    }
-    next({
-      status: 400,
-      message: `Updated dish price must be a number`,
-    });
+function list(req, res, next) {
+  res.json({ data: dishes });
 }
 
-function dishExists(req, res, next) {
+function read(req, res, next) {
+  res.json({ data: res.locals.dish })
+}
+
+function update(req, res, next) {
+  const oldDishData = res.locals.dish;
+  const newDishData = req.body.data
+  res.status(200).json( { data: {...oldDishData, ...newDishData} } );
+}
+
+
+// MIDDLEWARE
+function dishIdExists(req, res, next) {
   const { dishId } = req.params;
-  const foundDish = dishes.find((dish) => dish.id === dishId);
-  if (foundDish) {
-    res.locals.dish = foundDish;
+  const dish = dishes.find(dish => dish.id === dishId);
+  if(dish) {
+    res.locals.dish = dish;
     return next();
   }
   next({
     status: 404,
-    message: `Dish does not exist: ${dishId}`,
-  });
+    message: `Dish does not exist: ${dishId}`
+  })
 }
 
-function bodyIdMatchesRouteId(req, res, next) {}
+function dishIdsMatch(req, res, next) {
+  const bodyId = req.body.data.id
+  const paramId = req.params.dishId
 
-// ------------------------ Create Read Update List Handlers
+  if(bodyId === null || !bodyId || bodyId === "") {
+    req.body.data.id = paramId;
+    return next();
+  }
 
-function list(req, res) {
-  res.json({ data: dishes });
+  if(bodyId != paramId) return next({
+    status: 400,
+    message: `Dish id does not match route id. Dish: ${bodyId}, Route: ${paramId}`
+  })
+  return next();
 }
 
-function create(req, res) {
-  //use nextId()
-  const { data: { name, description, price, image_url } = {} } = req.body
-  const newDish = {
-    id: nextId(),
-    name: name,
-    description: description,
-    price: price,
-    image_url: image_url,
+//Body data validation
+function bodyDataHas(propertyName) {
+  return function (req, res, next) {
+    const { data = {} } = req.body;
+    if (data[propertyName]) return next();
+    next({
+      status: 400,
+      message: `Dish must include a ${propertyName}`,
+    });
   };
-  dishes.push(newDish);
-  res.status(201).json({ data: newDish });
 }
 
-function read(req, res) {
-  res.json({ data: res.locals.dish });
+function textPropertyIsValid(propertyName) {
+  return function (req, res, next) {
+    if (req.body.data[propertyName] !== "") return next();
+    next({
+      status: 400,
+      message: `Dish must include a ${propertyName}`,
+    });
+  };
 }
 
-function update(req, res) {
-    const { dishId } = req.params;
-    const foundDish = dishes.find((dish) => dish.id === dishId);
-    const { data: { id, name, description, price, image_url } = {} } = req.body;
+function pricePropertyIsValid(req, res, next) {
+    const { price } = req.body.data;
+    if(typeof price !== "number") return next({
+      status: 400,
+      message: `price`
+    })
   
-    // Update the dish
-    foundDish.id = id;
-    foundDish.name = name;
-    foundDish.description = description;
-    foundDish.price = price;
-    foundDish.image_url = image_url;
-  
-    res.json({ data: foundDish });
-}
+    if (price > 0) {
+      return next();
+    }
+    return next({
+      status: 400,
+      message: `Dish must have a price that is an integer greater than 0`,
+    });
+ };
+
 
 module.exports = {
-  list,
   create: [
+    bodyDataHas("name"),
+    bodyDataHas("description"),
+    bodyDataHas("price"),
+    bodyDataHas("image_url"),
+    textPropertyIsValid("name"),
+    textPropertyIsValid("description"),
+    textPropertyIsValid("image_url"),
+    pricePropertyIsValid,
     create,
-    bodyDataHas("name"),
-    bodyDataHas("description"),
-    bodyDataHas("price"),
-    bodyDataHas("image_url"),
   ],
-  read: [read, dishExists],
+  read: [dishIdExists, read],
+  list,
   update: [
-    update,
-    dishExists,
-    isNumber,
+    dishIdExists, 
+    dishIdsMatch,
     bodyDataHas("name"),
     bodyDataHas("description"),
     bodyDataHas("price"),
     bodyDataHas("image_url"),
-    bodyIdMatchesRouteId,
+    textPropertyIsValid("name"),
+    textPropertyIsValid("description"),
+    textPropertyIsValid("image_url"),
+    pricePropertyIsValid,
+    update
   ],
 };
